@@ -6,6 +6,10 @@
 #include <pose_estimation/GravitationalModel.hpp>
 #include <pose_estimation/GeographicProjection.hpp>
 #include <mtk/types/S2.hpp>
+#include "Utils.hpp"
+#include <dynamic_model_svr/SVR.hpp>
+#include "serialize.hpp"
+
 
 using namespace uwv_kalman_filters;
 
@@ -146,8 +150,11 @@ template <typename FilterState>
 Eigen::Matrix<TranslationType::scalar, 6, 1>
 measurementEfforts(const FilterState &state, boost::shared_ptr<uwv_dynamic_model::DynamicModel> dynamic_model,
                    const Eigen::Vector3d& imu_in_body, const Eigen::Vector3d& rotation_rate_body)
+
 {
+
     // set damping parameters
+/*
     uwv_dynamic_model::UWVParameters params = dynamic_model->getUWVParameters();
     params.inertia_matrix.block(0,0,2,2) = state.inertia.block(0,0,2,2);
     params.inertia_matrix.block(0,5,2,1) = state.inertia.block(0,2,2,1);
@@ -163,7 +170,7 @@ measurementEfforts(const FilterState &state, boost::shared_ptr<uwv_dynamic_model
     params.damping_matrices[1].block(5,5,1,1) = state.quad_damping.block(2,2,1,1);
        
     dynamic_model->setUWVParameters(params);
-
+*/
     // assume center of rotation to be the body frame
     Eigen::Vector3d water_velocity;
     water_velocity[0] = state.water_velocity[0];
@@ -181,13 +188,40 @@ measurementEfforts(const FilterState &state, boost::shared_ptr<uwv_dynamic_model
     // assume the angular acceleration to be zero
     acceleration_6d << acceleration_body, base::Vector3d::Zero();
 
-    base::Vector6d efforts = dynamic_model->calcEfforts(acceleration_6d, velocity_6d, state.orientation);
+dynamic_model_svr::SVR svr;
+// vector X that has both velocityand accelaration components
+base::VectorXd X;
+X[0] = velocity_6d[0];
+X[1] = velocity_6d[1];
+X[2] = velocity_6d[5];
+X[3] = acceleration_6d[0];
+X[4] = acceleration_6d[1];
+X[5] = acceleration_6d[5];
+
+// loading the Y labels 
+dynamic_model_svr::SVR::SVRFitOutput  Y;
+load (Y, "fitOutput");
+// 
+Eigen::Matrix<double, Dynamic, Dynamic, RowMajor> s = Pinv(cov(X));
+//kernelizing X
+Eigen::MatrixXd gram_X = mahalanobis_kernel(X,s);
+
+
+std::cout << "output_sklearn:" << svr.predict_sklearn(gram_X, Y) << std::endl;
+
+base::Vector6d efforts = svr.predict_sklearn(gram_X, Y);
+Eigen::MatrixXd efforts_ = svr.predict_sklearn(gram_X, Y);
+// serializing the output 
+save(efforts_,"efforts_svr");
 
     // returns the expected forces and torques given the current state
     return efforts;
 }
 
 /* This measurement model allows to constrain the velocity based on the motion model in the absence of effort measurements */
+
+
+
 template <typename FilterState>
 Eigen::Matrix<TranslationType::scalar, 6, 1>
 constrainVelocity(const FilterState &state, boost::shared_ptr<uwv_dynamic_model::DynamicModel> dynamic_model,
