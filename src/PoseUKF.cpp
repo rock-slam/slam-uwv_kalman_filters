@@ -6,9 +6,9 @@
 #include <pose_estimation/GravitationalModel.hpp>
 #include <pose_estimation/GeographicProjection.hpp>
 #include <mtk/types/S2.hpp>
-#include "Utils.hpp"
+#include <dynamic_model_svr/Utils.hpp>
 #include <dynamic_model_svr/SVR.hpp>
-#include "serialize.hpp"
+#include <dynamic_model_svr/serialize.hpp>
 
 
 using namespace uwv_kalman_filters;
