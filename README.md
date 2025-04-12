@@ -22,7 +22,7 @@ Make sure that the Ruby interpreter (recommended version 2.3) is installed on yo
 mkdir rock
 cd rock
 wget http://www.rock-robotics.org/autoproj_bootstrap
-ruby autoproj_bootstrap git git@github.com:rock-core/buildconf.git
+ruby autoproj_bootstrap git https://github.com/rock-core/buildconf.git
 source env.sh
 autoproj update # All configurations can be answered with the default parameters besides of the Rock flavor. This must be set to master.
 ```
